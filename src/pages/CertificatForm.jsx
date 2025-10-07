@@ -1,74 +1,110 @@
-import React, { useState } from "react";
-import { generateCertificat } from "../services/certificat";
+import React, { useState, useEffect } from "react";
+import { genererCertificatExact } from "./Certificat";
+import { getAllApprenants, getFiliereById } from "../services/indexedDB";
 
 export default function CertificatForm() {
-  const [nom, setNom] = useState("");
-  const [filiere, setFiliere] = useState("");
-  const [debut, setDebut] = useState("");
-  const [fin, setFin] = useState("");
-  const [photo, setPhoto] = useState(null);
+  const [apprenants, setApprenants] = useState([]);
+  const [selectedApprenantId, setSelectedApprenantId] = useState("");
+  const [selectedApprenant, setSelectedApprenant] = useState(null);
+  const [filiere, setFiliere] = useState(null);
+  const [periode, setPeriode] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
 
-  const handleGenerate = () => {
-    generateCertificat(
-      { nom },
-      filiere,
-      { debut, fin },
-      photo
-    );
+  // Charger uniquement les apprenants qui ont payé
+  useEffect(() => {
+    const fetchApprenants = async () => {
+      const allApprenants = await getAllApprenants();
+      const payes = allApprenants.filter((a) => a.aPaye === true); // filtre
+      setApprenants(payes);
+    };
+    fetchApprenants();
+  }, []);
+
+  // Charger automatiquement la filière quand un apprenant est choisi
+  useEffect(() => {
+    const fetchFiliere = async () => {
+      if (selectedApprenantId) {
+        const apprenant = apprenants.find((a) => a.id === selectedApprenantId);
+        setSelectedApprenant(apprenant);
+        if (apprenant?.filiereId) {
+          const f = await getFiliereById(apprenant.filiereId);
+          setFiliere(f);
+        }
+      }
+    };
+    fetchFiliere();
+  }, [selectedApprenantId, apprenants]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedApprenant || !filiere || !periode) {
+      alert("Veuillez remplir tous les champs.");
+      return;
+    }
+    genererCertificatExact(selectedApprenant, filiere, periode, photoFile);
   };
 
   return (
-    <div className="container mt-4">
-      <h2>Générer un certificat</h2>
+    <div className="card p-4">
+      <h3>Génération de Certificat</h3>
+      <form onSubmit={handleSubmit}>
+        {/* Liste déroulante des apprenants qui ont payé */}
+        <div className="mb-3">
+          <label className="form-label">Apprenant</label>
+          <select
+            className="form-select"
+            value={selectedApprenantId}
+            onChange={(e) => setSelectedApprenantId(e.target.value)}
+          >
+            <option value="">-- Choisir un apprenant en ordre de paiement --</option>
+            {apprenants.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nom}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <input
-        type="text"
-        placeholder="Nom de l'apprenant"
-        className="form-control my-2"
-        value={nom}
-        onChange={(e) => setNom(e.target.value)}
-      />
+        {/* Champ filière auto-rempli */}
+        {filiere && (
+          <div className="mb-3">
+            <label className="form-label">Filière</label>
+            <input
+              type="text"
+              className="form-control"
+              value={filiere.nom}
+              readOnly
+            />
+          </div>
+        )}
 
-      <input
-        type="text"
-        placeholder="Filière"
-        className="form-control my-2"
-        value={filiere}
-        onChange={(e) => setFiliere(e.target.value)}
-      />
-
-      <div className="row my-2">
-        <div className="col">
-          <label>Date début</label>
+        {/* Période */}
+        <div className="mb-3">
+          <label className="form-label">Période</label>
           <input
-            type="date"
+            type="text"
             className="form-control"
-            value={debut}
-            onChange={(e) => setDebut(e.target.value)}
+            placeholder="ex: Janvier - Juin 2025"
+            value={periode}
+            onChange={(e) => setPeriode(e.target.value)}
           />
         </div>
-        <div className="col">
-          <label>Date fin</label>
+
+        {/* Photo */}
+        <div className="mb-3">
+          <label className="form-label">Photo de l'apprenant</label>
           <input
-            type="date"
+            type="file"
             className="form-control"
-            value={fin}
-            onChange={(e) => setFin(e.target.value)}
+            accept="image/*"
+            onChange={(e) => setPhotoFile(e.target.files[0])}
           />
         </div>
-      </div>
 
-      <label className="my-2">Photo de l'apprenant</label>
-      <input
-        type="file"
-        className="form-control"
-        accept="image/*"
-        onChange={(e) => setPhoto(e.target.files[0])}
-      />
-
-      <button className="btn btn-primary mt-3" onClick={handleGenerate}>
-        Générer le certificat
-      </button>
+        <button type="submit" className="btn btn-primary">
+          Générer Certificat
+        </button>
+      </form>
     </div>
   );
 }

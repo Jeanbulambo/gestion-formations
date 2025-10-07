@@ -126,3 +126,18 @@ export const getPaiements = async () => {
   return await db.getAll("paiements");
 };
 
+// ✅ Récupérer uniquement les apprenants qui ont payé
+export const getApprenantsEnOrdre = async () => {
+  const db = await initDB();
+  const apprenants = await db.getAll("apprenants");
+  const paiements = await db.getAll("paiements");
+
+  // On considère qu'un apprenant est "en ordre"
+  // si au moins un paiement existe avec son id
+  const apprenantsPayes = apprenants.filter((a) =>
+    paiements.some((p) => p.apprenantId === a.id)
+  );
+
+  return apprenantsPayes;
+};
+

@@ -27,6 +27,9 @@ export default function Navbar() {
             <li className="nav-item">
               <Link className="nav-link" to="/paiements">Paiement</Link>
             </li>
+            <li className="nav-item">
+              <Link className="nav-link" to="/historiquefactures">Historique de facture</Link>
+            </li>
           </ul>
         </div>
       </div>

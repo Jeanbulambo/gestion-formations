@@ -1,43 +1,90 @@
-import { useEffect, useState } from "react";
-import { getApprenants, getFilieres } from "../services/db";
-import { generateCertificat } from "../services/certificat";
+import React, { useState, useEffect } from "react";
+import { genererCertificatExact } from "../utils/genererCertificatExact";
+import { getApprenantsEnOrdre } from "../services/db"; // 👈 utilise la nouvelle fonction
 
 export default function Certificat() {
   const [apprenants, setApprenants] = useState([]);
-  const [filieres, setFilieres] = useState([]);
+  const [selectedApprenant, setSelectedApprenant] = useState(null);
+  const [periode, setPeriode] = useState("");
+  const [photo, setPhoto] = useState(null);
 
-  useEffect(() => { fetchData(); }, []);
+  // ✅ Charger seulement les apprenants en ordre
+  useEffect(() => {
+    const fetchApprenants = async () => {
+      const payes = await getApprenantsEnOrdre();
+      setApprenants(payes);
+    };
+    fetchApprenants();
+  }, []);
 
-  const fetchData = async () => { setApprenants(await getApprenants()); setFilieres(await getFilieres()); };
-  const getFiliereById = id => filieres.find(f => f.id === id);
+  const handleSelect = (id) => {
+    const apprenant = apprenants.find((a) => a.id === parseInt(id));
+    setSelectedApprenant(apprenant);
+  };
 
-  const handleCertificat = (apprenant) => {
-    const filiere = getFiliereById(apprenant.filiereId);
-    if (!filiere) return alert("Filière introuvable !");
-    if ((apprenant.paiementEffectue || 0) < (filiere.somme || 0)) return alert("❌ Paiement total non effectué !");
-    generateCertificat(apprenant, filiere);
+  const handleGenerate = () => {
+    if (!selectedApprenant || !periode) {
+      alert("Veuillez choisir un apprenant et entrer une période !");
+      return;
+    }
+    genererCertificatExact(selectedApprenant, periode, photo);
   };
 
   return (
-    <div className="container">
-      <h2 className="mb-4">Impression des Certificats</h2>
-      {apprenants.length === 0 ? <p>Aucun apprenant trouvé.</p> :
-        <table className="table table-bordered">
-          <thead><tr><th>Nom</th><th>Filière</th><th>Paiement</th><th>Action</th></tr></thead>
-          <tbody>
-            {apprenants.map(a => {
-              const filiere = getFiliereById(a.filiereId);
-              const total = filiere?.somme || 0;
-              return <tr key={a.id}>
-                <td>{a.nom}</td>
-                <td>{filiere?.nom || "N/A"}</td>
-                <td>{a.paiementEffectue >= total ? <span className="badge bg-success">Payé</span> : <span className="badge bg-warning">{a.paiementEffectue} / {total}$</span>}</td>
-                <td><button className="btn btn-primary btn-sm" onClick={() => handleCertificat(a)}>Générer Certificat</button></td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
-      }
+    <div style={{ maxWidth: "500px", margin: "2rem auto", fontFamily: "Arial" }}>
+      <h2>Générer un certificat</h2>
+
+      <div>
+        <label>Apprenant :</label>
+        <select
+          onChange={(e) => handleSelect(e.target.value)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        >
+          <option value="">-- Sélectionner un apprenant --</option>
+          {apprenants.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.nom}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedApprenant && (
+        <div style={{ marginBottom: "10px" }}>
+          <label>Filière :</label>
+          <input
+            type="text"
+            value={selectedApprenant.filiere}
+            disabled
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
+
+      <div>
+        <label>Période :</label>
+        <input
+          type="text"
+          value={periode}
+          onChange={(e) => setPeriode(e.target.value)}
+          placeholder="ex: Janvier - Mars 2025"
+          style={{ width: "100%", marginBottom: "10px" }}
+        />
+      </div>
+
+      <div>
+        <label>Photo de l'apprenant :</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files[0])}
+          style={{ marginBottom: "10px" }}
+        />
+      </div>
+
+      <button onClick={handleGenerate} style={{ padding: "10px 20px" }}>
+        Générer le certificat
+      </button>
     </div>
   );
 }
